@@ -1,4 +1,6 @@
 /** @param {NS} ns **/
+/** @param {import(".").NS } ns */
+
 export async function main(ns) {
 	var loop = true; //toggle for loop
 	var sleepTime;
@@ -12,13 +14,13 @@ export async function main(ns) {
 			'targetMoneyAvailable': await ns.getServerMoneyAvailable(target),
 			'moneyThresh': await ns.getServerMaxMoney(target) * 0.90,
 			'chanceToHack': await ns.hackAnalyzeChance(target),
-			'minSecurity': await ns.getServerMinSecurityLevel(target),
 			'targetSecurity': await ns.getServerSecurityLevel(target),
 			'securityThresh': await ns.getServerMinSecurityLevel(target) + 5,
 			'growTime': ns.getGrowTime(target),
 			'weakenTime': ns.getWeakenTime(target),
 			'hackTime': ns.getHackTime(target),
 		}
+
 		// ns.tprint(target);
 		// ns.tprint(hackableServers);
 
@@ -36,15 +38,44 @@ export async function main(ns) {
 			var playerHackLevel = await ns.getHackingLevel();
 			sleepTime = targetInfo.weakenTime;
 
-			if(reqHackLevel >= playerHackLevel || server == 'darkweb' ){
+			if (reqHackLevel >= playerHackLevel || server == 'darkweb') {
 				ns.print('Required hack level Higher than Player!!!')
 			}
-			else if (targetInfo.targetMoneyAvailable <= (targetInfo.targetMaxMoney * 0.50) ||
-				 (targetInfo.targetSecurity > targetInfo.minSecurity && 
-				 targetInfo.chanceToHack < 0.70)) {
-				if (await ns.scriptRunning('hack.ns', server))
-					await ns.scriptKill('hack.ns', server);
+			else if (targetInfo.targetMoneyAvailable > targetInfo.moneyThresh) {
+				if (await ns.scriptRunning('grow.ns', server))
+					await ns.scriptKill('grow.ns', server);
+				if (weakenThreads == 0 || growThreads == 0 || hackThreads == 0) {
+					if (await ns.scriptRunning('weakenG.ns', server))
+						await ns.scriptKill('weakenG.ns', server);
+					var threads = Math.floor(maxRam * 1 / hackRam);
+					if ((maxRam - await ns.getServerUsedRam(server)) >= threads * hackRam &&
+						maxRam != 0 && !await ns.scriptRunning('hackG.ns', server))
+						ns.exec('hackG.ns', server, threads, target);
+					sleepTime = targetInfo.hackTime;
+				}
+				else if (targetInfo.targetSecurity > targetInfo.securityThresh) {
+					if (await ns.scriptRunning('hackG.ns', server))
+						await ns.scriptKill('hackG.ns', server);
+					if (!await ns.scriptRunning('weakenG.ns', server))
+						ns.exec('weakenG.ns', server, weakenThreads, target);
+					sleepTime = targetInfo.weakenTime;
+				}
+				else {
+					if (await ns.scriptRunning('weakenG.ns', server))
+						await ns.scriptKill('weakenG.ns', server);
+					if (await ns.scriptRunning('hackG.ns', server))
+						await ns.scriptKill('hackG.ns', server);
 
+					if (!await ns.scriptRunning('grow.ns', server))
+						ns.exec('grow.ns', server, growThreads, target);
+					sleepTime = targetInfo.growTime;
+				}
+			}
+			else {
+				if (await ns.scriptRunning('weakenG.ns', server))
+					await ns.scriptKill('weakenG.ns', server);
+				if (await ns.scriptRunning('hackG.ns', server))
+					await ns.scriptKill('hackG.ns', server);
 				if (weakenThreads == 0 || growThreads == 0 || hackThreads == 0) {
 					var threads = Math.floor(maxRam * 1 / growRam);
 					if ((maxRam - await ns.getServerUsedRam(server)) >= threads * growRam &&
@@ -52,38 +83,10 @@ export async function main(ns) {
 						ns.exec('grow.ns', server, threads, target);
 					sleepTime = targetInfo.growTime;
 				}
-				else if (targetInfo.chanceToHack < 0.60) {
-					// ns.tprint(targetInfo.chanceToHack)
-					if (await ns.scriptRunning('growH.ns', server))
-						await ns.scriptKill('growH.ns', server);
-					if (!await ns.scriptRunning('weakenH.ns', server))
-						ns.exec('weakenH.ns', server, weakenThreads, target);
-					sleepTime = targetInfo.weakenTime;
-				}
-				else if (targetInfo.targetMoneyAvailable <= (targetInfo.targetMaxMoney * 0.50)) {
-					if (await ns.scriptRunning('weakenH.ns', server))
-						await ns.scriptKill('weakenH.ns', server);
-					if (!await ns.scriptRunning('growH.ns', server))
-						ns.exec('growH.ns', server, growThreads, target);
-					sleepTime = targetInfo.growTime;
-				}
-			}
-			else {
-				if (await ns.scriptRunning('growH.ns', server))
-					await ns.scriptKill('growH.ns', server);
-				if (await ns.scriptRunning('weakenH.ns', server))
-					await ns.scriptKill('weakenH.ns', server);
-				if (weakenThreads == 0 || growThreads == 0 || hackThreads == 0) {
-					var threads = Math.floor(maxRam * 1 / hackRam);
-					if ((maxRam - await ns.getServerUsedRam(server)) >= threads * hackRam &&
-						maxRam != 0 && !await ns.scriptRunning('hack.ns', server))
-						ns.exec('hack.ns', server, threads, target);
-					sleepTime = targetInfo.hackTime;
-				}
 				else {
-					if (!await ns.scriptRunning('hack.ns', server))
-						ns.exec('hack.ns', server, hackThreads, target);
-					sleepTime = targetInfo.hackTime;
+					if (!await ns.scriptRunning('grow.ns', server))
+						ns.exec('grow.ns', server, growThreads, target);
+					sleepTime = targetInfo.growTime;
 				}
 			}
 		}
@@ -93,13 +96,13 @@ export async function main(ns) {
 }
 
 async function getInfo(ns) {
-	var readTarget = await ns.read('/attackAI/sharedFiles/target.txt');
+	var readTarget = await ns.read('/attackAI/v1/sharedFiles/target.txt');
 	var allTarget = readTarget.split(',') //for multiAttacks in future
 	var target;
 	if (allTarget.length == 1)
 		target = allTarget[0];
 
-	var readHackableServers = JSON.parse(await ns.read('/attackAI/sharedFiles/hackableServers'));
+	var readHackableServers = JSON.parse(await ns.read('/attackAI/v1/sharedFiles/hackableServers'));
 	// var hackableServers = readHackableServers.split(',');
 
 	return {

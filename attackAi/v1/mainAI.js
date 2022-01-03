@@ -1,16 +1,21 @@
 /** @param {NS} ns **/
+/** @param {import(".").NS } ns */
 
-import { helpers } from '/attackAI/helpers/mainHelper.ns';
+
+import { helpers } from '/attackAI/v1/helpers/mainHelper.js';
 export async function main(ns) {
+	ns.disableLog('ALL')
+	ns.enableLog('print')
+	ns.tail();
 	var loop = true, printToggle = false, earnedMoney = 0;
 	var playerMoney = await ns.getServerMoneyAvailable('home');
 	earnedMoney = 0;
-	await ns.scriptKill('/attackAI/weakenControl.ns', 'home')
-	await ns.scriptKill('/attackAI/growControl.ns', 'home')
-	await ns.scriptKill('/attackAI/hackControl.ns', 'home')
-	ns.exec('/attackAI/weakenControl.ns', 'home');
-	ns.exec('/attackAI/growControl.ns', 'home');
-	ns.exec('/attackAI/hackControl.ns', 'home');
+	await ns.scriptKill('/attackAI/v1/weakenControl.js', 'home')
+	await ns.scriptKill('/attackAI/v1/growControl.js', 'home')
+	await ns.scriptKill('/attackAI/v1/hackControl.js', 'home')
+	ns.exec('/attackAI/v1/weakenControl.js', 'home');
+	ns.exec('/attackAI/v1/growControl.js', 'home');
+	ns.exec('/attackAI/v1/hackControl.js', 'home');
 	do {
 		// Purchasing Personal Servers If Possible
 		await helpers.puchaseServers(ns);
@@ -23,8 +28,8 @@ export async function main(ns) {
 
 
 		// Writing Data Into File
-		await ns.write('/attackAI/sharedFiles/target.txt', targetServer, 'w');
-		await ns.write('/attackAI/sharedFiles/hackableServers.txt', hackableServers, 'w');
+		await ns.write('/attackAI/v1/sharedFiles/target.txt', targetServer, 'w');
+		await ns.write('/attackAI/v1/sharedFiles/hackableServers.txt', hackableServers, 'w');
 
 		var tempMoney = playerMoney;
 
@@ -36,31 +41,31 @@ export async function main(ns) {
 		var securityLevel = await ns.getServerSecurityLevel(targetServer);
 		var securityThresh = await ns.getServerMinSecurityLevel(targetServer) + 5;
 		var chanceToHack = await ns.hackAnalyzeChance(targetServer);
-		var processes = await ns.ps('pserv-1')
-		if(playerMoney >= tempMoney )
+		var processes = await ns.ps('home')
+		if (playerMoney >= tempMoney)
 			earnedMoney = playerMoney - tempMoney;
-		else{
+		else {
 			earnedMoney = 0;
 		}
-		
+
 		if (securityLevel <= securityThresh && moneyAvailable >= maxMoney * 0.50) {
-			if (!ns.scriptRunning('hack.ns', 'pserv-1')) {
-				await ns.scriptKill('/attackAI/hackControl.ns', 'home')
-				ns.exec('/attackAI/hackControl.ns', 'home');
+			if (!ns.scriptRunning('hack.ns', 'home')) {
+				await ns.scriptKill('/attackAI/v1/hackControl.js', 'home')
+				ns.exec('/attackAI/v1/hackControl.js', 'home');
 			}
 		}
 		if (securityLevel > securityThresh) {
-			if (!ns.scriptRunning('weakenG.ns', 'pserv-1')) {
-				await ns.scriptKill('/attackAI/growControl.ns', 'home');
-				ns.exec('/attackAI/growControl.ns', 'home');
+			if (!ns.scriptRunning('weakenG.ns', 'home')) {
+				await ns.scriptKill('/attackAI/v1/growControl.js', 'home');
+				ns.exec('/attackAI/v1/growControl.js', 'home');
 			}
-			if (!ns.scriptRunning('weakenH.ns', 'pserv-1')) {
-				await ns.scriptKill('/attackAI/hackControl.ns', 'home');
-				ns.exec('/attackAI/hackControl.ns', 'home');
+			if (!ns.scriptRunning('weakenH.ns', 'home')) {
+				await ns.scriptKill('/attackAI/v1/hackControl.js', 'home');
+				ns.exec('/attackAI/v1/hackControl.js', 'home');
 			}
-			if (!ns.scriptRunning('weaken.ns', 'pserv-1')) {
-				await ns.scriptKill('/attackAI/weakenControl.ns', 'home')
-				ns.exec('/attackAI/weakenControl.ns', 'home');
+			if (!ns.scriptRunning('weaken.ns', 'home')) {
+				await ns.scriptKill('/attackAI/v1/weakenControl.js', 'home')
+				ns.exec('/attackAI/v1/weakenControl.js', 'home');
 			}
 		}
 		var printType = 'print'
@@ -78,7 +83,7 @@ export async function main(ns) {
 		ns[printType](`Security : ${securityLevel}`);
 		ns[printType](`SecurityThresh : ${securityThresh}`);
 		ns[printType](`ChanceToHack : ${chanceToHack}`);
-		ns[printType](`--Scripts--pserv-1--------`);
+		ns[printType](`--Scripts--home--------`);
 		for (let i = 0; i < processes.length; ++i) {
 			ns[printType](`[${processes[i].filename}] : ${processes[i].threads}`);
 			if (processes[i].filename.startsWith('weaken')) {

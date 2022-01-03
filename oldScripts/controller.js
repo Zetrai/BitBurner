@@ -1,5 +1,6 @@
 /** @param {NS} ns **/
-import { config } from './config.ns'
+/** @param {import(".").NS } ns */
+
 
 export async function main(ns) {
 	var ratio = {
@@ -20,7 +21,7 @@ export async function main(ns) {
 	ratio = await getRatio(targetServer, ns);
 	// ns.tprint(targetServer);
 
-	await ns.exec('purchaseServers.ns', 'home');
+	await ns.exec('purchaseServers.js', 'home');
 	await ns.sleep(1 * 5 * 1000);
 	// printing Logs
 	var targetMoneyAvailable = await ns.getServerMoneyAvailable(targetServer);
@@ -58,7 +59,7 @@ async function controlRatio(targetServer, ratio, myInfo, programsCount, ns) {
 			ns.tprint('RUNNING ' + identifyRatio + ' SCRIPTS')
 			ns.tprint('---------------------------------------------------');
 			targetServer = await getTargetServer(myInfo, ns);
-			await ns.exec('purchaseServers.ns', 'home');
+			await ns.exec('purchaseServers.js', 'home');
 			await ns.sleep(1 * 5 * 1000);
 			await callScripts(targetServer, ratio, myInfo, programsCount, ns);
 		}
@@ -127,7 +128,7 @@ async function callScripts(targetServer, ratio, myInfo, programsCount, ns) {
 	var usePercentage = '0.90'
 	if (myInfo.level == 1)
 		usePercentage = '0.95';
-	var maxRam = Math.ceil(await ns.getServerMaxRam('home') - 40) 
+	var maxRam = Math.ceil(await ns.getServerMaxRam('home') - 40)
 	await scriptsExecution('home', maxRam, targetServer, ratio, ns);
 
 

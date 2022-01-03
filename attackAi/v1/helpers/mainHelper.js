@@ -1,4 +1,6 @@
 /** @param {NS} ns **/
+/** @param {import(".").NS } ns */
+
 export async function main(ns) {
 
 }
@@ -83,8 +85,8 @@ export var helpers = {
 					}
 					if (count >= totalPortsReq)
 						ns.nuke(edges[i]);
-					if ((count >= totalPortsReq || ns.hasRootAccess(edges[i])) 
-							&& (ns.getHackingLevel() >= ns.getServerRequiredHackingLevel(edges[i]))) {
+					if ((count >= totalPortsReq || ns.hasRootAccess(edges[i]))
+						&& (ns.getHackingLevel() >= ns.getServerRequiredHackingLevel(edges[i]))) {
 						hackableServers.push(edges[i]);
 						if (edges[i].substring(0, 5) != 'pserv') {
 							nonPersonalServers.push(edges[i])
@@ -125,13 +127,13 @@ export var helpers = {
 			currTime = ns.getWeakenTime(hackableServers[i]) + ns.getGrowTime(hackableServers[i]) + ns.getHackTime(hackableServers[i]);
 			currVal /= currTime;
 			if (currVal >= optimalVal && reqHackLevel <= personalHackLevel) {
-				if((securityLevel > securityThresh) || (securityLevel <= securityThresh && chanceToHack > 0.70)){
+				if ((securityLevel > securityThresh) || (securityLevel <= securityThresh && chanceToHack > 0.70)) {
 					optimalVal = currVal;
 					optimalServer = hackableServers[i];
 				}
 			}
 		}
-		return 'rho-construction'
+		return 'rho-construction';
 		// return optimalServer;
 	},
 	puchaseServers: async function puchaseServers(ns) {
