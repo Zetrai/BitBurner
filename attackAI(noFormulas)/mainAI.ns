@@ -1,0 +1,97 @@
+/** @param {NS} ns **/
+
+import { helpers } from '/attackAI/helpers/mainHelper.ns';
+export async function main(ns) {
+	var loop = true, printToggle = false, earnedMoney = 0;
+	var playerMoney = await ns.getServerMoneyAvailable('home');
+	earnedMoney = 0;
+	await ns.scriptKill('/attackAI/weakenControl.ns', 'home')
+	await ns.scriptKill('/attackAI/growControl.ns', 'home')
+	await ns.scriptKill('/attackAI/hackControl.ns', 'home')
+	ns.exec('/attackAI/weakenControl.ns', 'home');
+	ns.exec('/attackAI/growControl.ns', 'home');
+	ns.exec('/attackAI/hackControl.ns', 'home');
+	do {
+		// Purchasing Personal Servers If Possible
+		await helpers.puchaseServers(ns);
+
+		// Storing Servers Details
+		var serverInfo = await helpers.scanAllServers(ns);
+		var targetServer = await helpers.getOptimalTarget(ns, serverInfo.hackableServers);
+		serverInfo.hackableServers.push('home')
+		var hackableServers = JSON.stringify(serverInfo.hackableServers);
+
+
+		// Writing Data Into File
+		await ns.write('/attackAI/sharedFiles/target.txt', targetServer, 'w');
+		await ns.write('/attackAI/sharedFiles/hackableServers.txt', hackableServers, 'w');
+
+		var tempMoney = playerMoney;
+
+		var reqHackLevel = await ns.getServerRequiredHackingLevel(targetServer);
+		playerMoney = await ns.getServerMoneyAvailable('home');
+		var maxMoney = await ns.getServerMaxMoney(targetServer);
+		var moneyAvailable = await ns.getServerMoneyAvailable(targetServer);
+		var minSecurity = await ns.getServerMinSecurityLevel(targetServer);
+		var securityLevel = await ns.getServerSecurityLevel(targetServer);
+		var securityThresh = await ns.getServerMinSecurityLevel(targetServer) + 5;
+		var chanceToHack = await ns.hackAnalyzeChance(targetServer);
+		var processes = await ns.ps('pserv-1')
+		if(playerMoney >= tempMoney )
+			earnedMoney = playerMoney - tempMoney;
+		else{
+			earnedMoney = 0;
+		}
+		
+		if (securityLevel <= securityThresh && moneyAvailable >= maxMoney * 0.50) {
+			if (!ns.scriptRunning('hack.ns', 'pserv-1')) {
+				await ns.scriptKill('/attackAI/hackControl.ns', 'home')
+				ns.exec('/attackAI/hackControl.ns', 'home');
+			}
+		}
+		if (securityLevel > securityThresh) {
+			if (!ns.scriptRunning('weakenG.ns', 'pserv-1')) {
+				await ns.scriptKill('/attackAI/growControl.ns', 'home');
+				ns.exec('/attackAI/growControl.ns', 'home');
+			}
+			if (!ns.scriptRunning('weakenH.ns', 'pserv-1')) {
+				await ns.scriptKill('/attackAI/hackControl.ns', 'home');
+				ns.exec('/attackAI/hackControl.ns', 'home');
+			}
+			if (!ns.scriptRunning('weaken.ns', 'pserv-1')) {
+				await ns.scriptKill('/attackAI/weakenControl.ns', 'home')
+				ns.exec('/attackAI/weakenControl.ns', 'home');
+			}
+		}
+		var printType = 'print'
+		if (printToggle) {
+			printType = 'tprint'
+		}
+		// Reporting Status
+		ns[printType](`--------------------------`);
+		ns[printType](`Target : ${targetServer}`);
+		ns[printType](`Required Hack Level : ${reqHackLevel}`);
+		ns[printType](`Earned Money : ${earnedMoney}`);
+		ns[printType](`MaxMoney : ${await helpers.convertMoney(maxMoney)}`);
+		ns[printType](`MoneyAvailable : ${await helpers.convertMoney(moneyAvailable)}`);
+		ns[printType](`MinSecurity : ${minSecurity}`);
+		ns[printType](`Security : ${securityLevel}`);
+		ns[printType](`SecurityThresh : ${securityThresh}`);
+		ns[printType](`ChanceToHack : ${chanceToHack}`);
+		ns[printType](`--Scripts--pserv-1--------`);
+		for (let i = 0; i < processes.length; ++i) {
+			ns[printType](`[${processes[i].filename}] : ${processes[i].threads}`);
+			if (processes[i].filename.startsWith('weaken')) {
+				ns[printType](`Time Taken : ${await helpers.convertTime(await ns.getWeakenTime(targetServer))}`)
+			}
+			else if (processes[i].filename.startsWith('grow')) {
+				ns[printType](`Time Taken : ${await helpers.convertTime(await ns.getGrowTime(targetServer))}`)
+			}
+			else if (processes[i].filename.startsWith('hack')) {
+				ns[printType](`Time Taken : ${await helpers.convertTime(await ns.getHackTime(targetServer))}`)
+			}
+		}
+		ns[printType]('---------------------------');
+		await ns.sleep(1 * 60 * 1000);
+	} while (loop);
+}
