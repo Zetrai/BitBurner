@@ -1,0 +1,181 @@
+/** @param {NS} ns **/
+export async function main(ns) {
+
+}
+
+export var helpers = {
+	convertMoney: async function convertMoney(num) {
+		var digits = 3;
+		var lookup = [
+			{ value: 1, symbol: "" },
+			{ value: 1e3, symbol: "k" },
+			{ value: 1e6, symbol: "M" },
+			{ value: 1e9, symbol: "B" },
+			{ value: 1e12, symbol: "T" },
+			{ value: 1e15, symbol: "P" },
+			{ value: 1e18, symbol: "E" }
+		];
+		var rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
+		var item = lookup.slice().reverse().find(function (item) {
+			return num >= item.value;
+		});
+		return item ? (num / item.value).toFixed(digits).replace(rx, "$1") + item.symbol : "0";
+	},
+	convertTime: async function msToTime(ms) {
+		let seconds = (ms / 1000).toFixed(1);
+		let minutes = (ms / (1000 * 60)).toFixed(1);
+		let hours = (ms / (1000 * 60 * 60)).toFixed(1);
+		let days = (ms / (1000 * 60 * 60 * 24)).toFixed(1);
+		if (seconds < 60)
+			return seconds + " Sec";
+		else if (minutes < 60)
+			return minutes + " Min";
+		else if (hours < 24)
+			return hours + " Hrs";
+		else
+			return days + " Days"
+	},
+	scanAllServers: async function scanAllServers(ns) {
+		const fileList = ["hack.ns", "weaken.ns", "grow.ns",
+			"hackW.ns", "growW.ns",
+			"hackG.ns", "weakenG.ns",
+			"weakenH.ns", "growH.ns",];
+		var q = [];
+		var serverDiscovered = [];
+		var hackableServers = [];
+		var nonPersonalServers = [];
+		var havePersonalServers = false;
+
+		q.push("home");
+		serverDiscovered["home"] = true;
+
+		while (q.length) {
+			let v = q.shift();
+			// ns.tprint(v)
+			let edges = ns.scan(v);
+			// ns.tprint(edges)
+			for (let i = 0; i < edges.length; i++) {
+				if (!serverDiscovered[edges[i]]) {
+					serverDiscovered[edges[i]] = true;
+					q.push(edges[i]);
+					await ns.scp(fileList, "home", edges[i]);
+					var totalPortsReq = await ns.getServerNumPortsRequired(edges[i]);
+					var count = 0;
+					if (ns.fileExists('BruteSSH.exe', 'home')) {
+						count++;
+						ns.brutessh(edges[i])
+					}
+					if (ns.fileExists('FTPCrack.exe', 'home')) {
+						count++;
+						ns.ftpcrack(edges[i]);
+					}
+					if (ns.fileExists('relaySMTP.exe', 'home')) {
+						count++;
+						ns.relaysmtp(edges[i]);
+					}
+					if (ns.fileExists('HTTPWorm.exe', 'home')) {
+						count++;
+						ns.httpworm(edges[i]);
+					}
+					if (ns.fileExists('SQLInject.exe', 'home')) {
+						count++;
+						ns.sqlinject(edges[i]);
+					}
+					if (count >= totalPortsReq)
+						ns.nuke(edges[i]);
+					if ((count >= totalPortsReq || ns.hasRootAccess(edges[i])) 
+							&& (ns.getHackingLevel() >= ns.getServerRequiredHackingLevel(edges[i]))) {
+						hackableServers.push(edges[i]);
+						if (edges[i].substring(0, 5) != 'pserv') {
+							nonPersonalServers.push(edges[i])
+						}
+						else {
+							havePersonalServers = true;
+						}
+					}
+
+				}
+			}
+		}
+
+		return {
+			allServers: Object.keys(serverDiscovered),
+			hackableServers: hackableServers,
+			nonPersonalServers: nonPersonalServers,
+			havePersonalServers: havePersonalServers
+		};
+	},
+	getOptimalTarget: async function getOptimalTarget(ns, hackableServers) {
+		let optimalServer = "n00dles";
+		let optimalVal = 0;
+		let currVal;
+		let currTime;
+
+		for (let i = 0; i < hackableServers.length; i++) {
+			var personalHackLevel = await ns.getHackingLevel();
+			var reqHackLevel = await ns.getServerRequiredHackingLevel(hackableServers[i]);
+			var maxMoney = await ns.getServerMaxMoney(hackableServers[i]);
+			var moneyAvailable = await ns.getServerMoneyAvailable(hackableServers[i]);
+			var minSecurity = await ns.getServerMinSecurityLevel(hackableServers[i]);
+			var securityLevel = await ns.getServerSecurityLevel(hackableServers[i]);
+			var securityThresh = await ns.getServerMinSecurityLevel(hackableServers[i]) + 5;
+			var chanceToHack = await ns.hackAnalyzeChance(hackableServers[i]);
+
+			currVal = ns.getServerMaxMoney(hackableServers[i]);
+			currTime = ns.getWeakenTime(hackableServers[i]) + ns.getGrowTime(hackableServers[i]) + ns.getHackTime(hackableServers[i]);
+			currVal /= currTime;
+			if (currVal >= optimalVal && reqHackLevel <= personalHackLevel) {
+				if((securityLevel > securityThresh) || (securityLevel <= securityThresh && chanceToHack > 0.70)){
+					optimalVal = currVal;
+					optimalServer = hackableServers[i];
+				}
+			}
+		}
+		return 'rho-construction'
+		// return optimalServer;
+	},
+	puchaseServers: async function puchaseServers(ns) {
+		var moneyAvailable = ns.getServerMoneyAvailable('home');
+		var maxRam = await ns.getPurchasedServerMaxRam();
+		var ram = 2, serverCost;
+		var purchaseToggle = true;
+
+		//get maximum Ram that could be purchased with available money
+		for (ram = 2; ram <= maxRam; ram *= 2) {
+			var prevCost = serverCost;
+			serverCost = await ns.getPurchasedServerCost(ram) * 25;
+			if (moneyAvailable < serverCost * 2) {
+				ram /= 2;
+				serverCost = prevCost;
+
+				break;
+			}
+		}
+		if (ram > 2) {
+			var purchasedServers = await ns.getPurchasedServers();
+			if (purchasedServers.length == 0) {
+				var i = 0;
+				while (i <= 24) {
+					var hostname = ns.purchaseServer('pserv-' + i, ram);
+					++i;
+				}
+			}
+			else if (ram > await ns.getServerMaxRam('pserv-0')) {
+				if (purchaseToggle) {
+					var i = 0;
+					ns.tprint('$$$---Buying 25 ' + ram + 'GB servers for $' + serverCost)
+					while (i <= 24) {
+						await ns.killall('pserv-' + i);
+						await ns.deleteServer('pserv-' + i);
+						await ns.purchaseServer('pserv-' + i, ram);
+
+						i++;
+					}
+				}
+				else {
+					ns.tprint('Purchasing Servers is OFF for now. Switch ON when necessary');
+				}
+			}
+		}
+	}
+}
